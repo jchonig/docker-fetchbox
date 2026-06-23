@@ -1,0 +1,99 @@
+package main
+
+import (
+	"os"
+	"testing"
+)
+
+func TestLoadConfig(t *testing.T) {
+	yaml := `
+interval: 10m
+mailboxes:
+  - name: TestBox
+    host: localhost
+    port: 1143
+    username: test@example.com
+    password_env: TEST_PASSWORD
+    folders:
+      - name: INBOX
+        destination:
+          type: webdav
+          url: http://dav.example.com
+          path: /attachments/
+          username: davuser
+          password_env: WEBDAV_PASSWORD
+`
+	f, err := os.CreateTemp("", "fetchbox-*.yml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(f.Name())
+	f.WriteString(yaml)
+	f.Close()
+
+	cfg, err := loadConfig(f.Name())
+	if err != nil {
+		t.Fatalf("loadConfig: %v", err)
+	}
+
+	if cfg.Interval != "10m" {
+		t.Errorf("interval: got %q, want %q", cfg.Interval, "10m")
+	}
+	if len(cfg.Mailboxes) != 1 {
+		t.Fatalf("mailboxes: got %d, want 1", len(cfg.Mailboxes))
+	}
+	mb := cfg.Mailboxes[0]
+	if mb.Name != "TestBox" {
+		t.Errorf("mailbox name: got %q", mb.Name)
+	}
+	if mb.Host != "localhost" {
+		t.Errorf("host: got %q", mb.Host)
+	}
+	if len(mb.Folders) != 1 {
+		t.Fatalf("folders: got %d, want 1", len(mb.Folders))
+	}
+	if mb.Folders[0].Destination.Type != "webdav" {
+		t.Errorf("destination type: got %q", mb.Folders[0].Destination.Type)
+	}
+}
+
+func TestLoadConfigDefaults(t *testing.T) {
+	f, err := os.CreateTemp("", "fetchbox-*.yml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(f.Name())
+	f.WriteString("mailboxes: []\n")
+	f.Close()
+
+	cfg, err := loadConfig(f.Name())
+	if err != nil {
+		t.Fatalf("loadConfig: %v", err)
+	}
+	if cfg.Interval != "5m" {
+		t.Errorf("default interval: got %q, want %q", cfg.Interval, "5m")
+	}
+}
+
+func TestLoadConfigMissingFile(t *testing.T) {
+	_, err := loadConfig("/nonexistent/path/fetchbox.yml")
+	if err == nil {
+		t.Fatal("expected error for missing file, got nil")
+	}
+}
+
+func TestMailboxPassword(t *testing.T) {
+	t.Setenv("MY_PASSWORD", "s3cr3t")
+	mb := Mailbox{PasswordEnv: "MY_PASSWORD"}
+	if got := mb.Password(); got != "s3cr3t" {
+		t.Errorf("Password(): got %q, want %q", got, "s3cr3t")
+	}
+}
+
+func TestDestinationPassword(t *testing.T) {
+	t.Setenv("DAV_PASS", "davpass")
+	d := Destination{PasswordEnv: "DAV_PASS"}
+	if got := d.Password(); got != "davpass" {
+		t.Errorf("Password(): got %q, want %q", got, "davpass")
+	}
+}

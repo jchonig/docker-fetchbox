@@ -1,0 +1,36 @@
+interval: 5m
+
+mailboxes:
+  - name: ProtonMail
+    host: bridge
+    port: 1143
+    tls: false
+    username: you@proton.me
+    password_env: PROTON_PASSWORD
+    folders:
+      - name: INBOX
+        destination:
+          type: webdav
+          url: https://dav.example.com
+          path: /attachments/proton/
+          username: davuser
+          password_env: WEBDAV_PASSWORD
+
+  - name: Gmail
+    host: imap.gmail.com
+    port: 993
+    tls: true
+    username: you@gmail.com
+    auth: oauth2
+    oauth2:
+      client_id_env: GMAIL_CLIENT_ID
+      client_secret_env: GMAIL_CLIENT_SECRET
+      refresh_token_env: GMAIL_REFRESH_TOKEN
+    folders:
+      - name: INBOX
+        destination:
+          type: webdav
+          url: https://dav.example.com
+          path: /attachments/gmail/
+          username: davuser
+          password_env: WEBDAV_PASSWORD

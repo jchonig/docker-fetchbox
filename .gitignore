@@ -27,6 +27,15 @@ go.work.sum
 # env file
 .env
 
+# Binaries
+fetchbox
+docker-fetchbox
+
+# Emacs
+*~
+\#*\#
+.\#*
+
 # Editor/IDE
 # .idea/
 # .vscode/

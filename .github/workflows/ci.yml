@@ -1,0 +1,88 @@
+name: CI
+
+# Runs on every branch push and on version tags.
+# PRs to main run lint + test only (no image build/push).
+on:
+  push:
+    branches: ['**']
+    tags: ['v*.*.*']
+  pull_request:
+    branches: [main]
+
+env:
+  IMAGE: ghcr.io/${{ github.repository }}
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: make lint
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: make test
+
+  image-test:
+    needs: [lint, test]
+    # Only runs on direct pushes (branches + version tags), not on PRs.
+    # PRs are gated by lint + test, which GitHub branch protection can require.
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Generates tags based on the event:
+      #   branch push  → <branch-name>  (e.g. main, feature-foo)
+      #   version tag  → <version>, <major>.<minor>, latest  (e.g. v1.2.3 → 1.2.3, 1.2, latest)
+      # The raw SHA tag is always included as a stable handle for the smoke test.
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}
+          flavor: |
+            latest=auto
+          tags: |
+            type=raw,value=${{ github.sha }}
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+
+      # Build and load locally so the smoke test can run before anything is pushed.
+      - name: Build image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          load: true
+          tags: ${{ env.IMAGE }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Test image
+        run: make image-run-test IMAGE=${{ env.IMAGE }} TAG=${{ github.sha }}
+
+      # Push all metadata tags.  Second build is a near-instant cache hit.
+      - name: Push image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha

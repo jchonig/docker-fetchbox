@@ -1,0 +1,19 @@
+services:
+  bridge:
+    image: shenxn/protonmail-bridge:latest
+    restart: unless-stopped
+    volumes:
+      - bridge-data:/root
+
+  fetchbox:
+    image: ghcr.io/jchonig/docker-fetchbox:latest
+    restart: unless-stopped
+    depends_on:
+      - bridge
+    volumes:
+      - ./config:/config:ro
+    env_file:
+      - .env
+
+volumes:
+  bridge-data:

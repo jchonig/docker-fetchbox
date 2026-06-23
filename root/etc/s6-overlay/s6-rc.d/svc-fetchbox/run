@@ -1,0 +1,2 @@
+#!/usr/bin/with-contenv bash
+exec s6-setuidgid abc /usr/local/bin/fetchbox --daemon --config /config/fetchbox.yml

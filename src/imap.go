@@ -1,0 +1,188 @@
+package main
+
+import (
+	"context"
+	"crypto/tls"
+	"fmt"
+	"io"
+	"net"
+	"os"
+	"strconv"
+
+	"github.com/emersion/go-imap/v2"
+	"github.com/emersion/go-imap/v2/imapclient"
+	"github.com/emersion/go-sasl"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
+)
+
+type imapClient struct {
+	c *imapclient.Client
+}
+
+func newIMAPClient(mb Mailbox) (MailFetcher, error) {
+	addr := net.JoinHostPort(mb.Host, strconv.Itoa(mb.Port))
+
+	var (
+		c   *imapclient.Client
+		err error
+	)
+	if mb.TLS {
+		c, err = imapclient.DialTLS(addr, &imapclient.Options{
+			TLSConfig: &tls.Config{ServerName: mb.Host},
+		})
+	} else {
+		c, err = imapclient.DialInsecure(addr, nil)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("dial %s: %w", addr, err)
+	}
+
+	if err := imapAuth(c, mb); err != nil {
+		c.Close()
+		return nil, err
+	}
+
+	return &imapClient{c: c}, nil
+}
+
+func imapAuth(c *imapclient.Client, mb Mailbox) error {
+	if mb.Auth == "oauth2" {
+		token, err := gmailAccessToken(mb.OAuth2)
+		if err != nil {
+			return fmt.Errorf("oauth2: %w", err)
+		}
+		saslClient := sasl.NewOAuthBearerClient(&sasl.OAuthBearerOptions{
+			Username: mb.Username,
+			Token:    token,
+		})
+		return c.Authenticate(saslClient)
+	}
+	return c.Login(mb.Username, mb.Password()).Wait()
+}
+
+func gmailAccessToken(cfg *OAuth2Config) (string, error) {
+	oauthCfg := &oauth2.Config{
+		ClientID:     os.Getenv(cfg.ClientIDEnv),
+		ClientSecret: os.Getenv(cfg.ClientSecretEnv),
+		Endpoint:     google.Endpoint,
+		Scopes:       []string{"https://mail.google.com/"},
+	}
+	ts := oauthCfg.TokenSource(context.Background(), &oauth2.Token{
+		RefreshToken: os.Getenv(cfg.RefreshTokenEnv),
+	})
+	t, err := ts.Token()
+	if err != nil {
+		return "", err
+	}
+	return t.AccessToken, nil
+}
+
+func (ic *imapClient) FetchUnseen(folder string) ([]RawMessage, error) {
+	if _, err := ic.c.Select(folder, nil).Wait(); err != nil {
+		return nil, fmt.Errorf("select %q: %w", folder, err)
+	}
+
+	searchData, err := ic.c.UIDSearch(&imap.SearchCriteria{
+		NotFlag: []imap.Flag{imap.FlagSeen},
+	}, nil).Wait()
+	if err != nil {
+		return nil, fmt.Errorf("uid search: %w", err)
+	}
+
+	uids := searchData.AllUIDs()
+	if len(uids) == 0 {
+		return nil, nil
+	}
+
+	section := &imap.FetchItemBodySection{
+		Specifier: imap.PartSpecifierNone,
+	}
+	fetchCmd := ic.c.Fetch(imap.UIDSetNum(uids...), &imap.FetchOptions{
+		UID:         true,
+		BodySection: []*imap.FetchItemBodySection{section},
+	})
+
+	var msgs []RawMessage
+	for {
+		msg := fetchCmd.Next()
+		if msg == nil {
+			break
+		}
+
+		var (
+			uid     imap.UID
+			rawBody []byte
+		)
+		for {
+			item := msg.Next()
+			if item == nil {
+				break
+			}
+			switch it := item.(type) {
+			case imapclient.FetchItemDataUID:
+				uid = it.UID
+			case imapclient.FetchItemDataBodySection:
+				if it.Literal != nil {
+					rawBody, err = io.ReadAll(it.Literal)
+					if err != nil {
+						return nil, fmt.Errorf("read literal: %w", err)
+					}
+				}
+			}
+		}
+
+		if uid != 0 && rawBody != nil {
+			msgs = append(msgs, RawMessage{UID: uint32(uid), Data: rawBody})
+		}
+	}
+
+	if err := fetchCmd.Close(); err != nil {
+		return nil, fmt.Errorf("fetch close: %w", err)
+	}
+
+	return msgs, nil
+}
+
+func (ic *imapClient) MarkSeen(folder string, uids []uint32) error {
+	if len(uids) == 0 {
+		return nil
+	}
+
+	imapUIDs := make([]imap.UID, len(uids))
+	for i, uid := range uids {
+		imapUIDs[i] = imap.UID(uid)
+	}
+	uidSet := imap.UIDSetNum(imapUIDs...)
+
+	return ic.c.Store(uidSet, &imap.StoreFlags{
+		Op:     imap.StoreFlagsAdd,
+		Silent: true,
+		Flags:  []imap.Flag{imap.FlagSeen},
+	}, nil).Close()
+}
+
+func (ic *imapClient) Close() error {
+	return ic.c.Logout().Wait()
+}
+
+// listFolders connects to mb and prints all mailbox names to stdout.
+func listFolders(mb Mailbox) error {
+	client, err := newIMAPClient(mb)
+	if err != nil {
+		return err
+	}
+	defer client.Close()
+
+	raw := client.(*imapClient).c
+	cmd := raw.List("", "*", nil)
+	defer cmd.Close()
+	for {
+		data := cmd.Next()
+		if data == nil {
+			break
+		}
+		fmt.Println(data.Mailbox)
+	}
+	return nil
+}
