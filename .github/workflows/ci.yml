@@ -66,7 +66,7 @@ jobs:
 
       # Build and load locally so the smoke test can run before anything is pushed.
       - name: Build image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           load: true
@@ -79,7 +79,7 @@ jobs:
 
       # Push all metadata tags.  Second build is a near-instant cache hit.
       - name: Push image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           push: true
