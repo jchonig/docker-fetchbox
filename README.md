@@ -67,7 +67,7 @@ mailboxes:
     username: you@gmail.com
     auth: oauth2
     oauth2:
-      client_id_env: GMAIL_CLIENT_ID
+      client_id: your-client-id.apps.googleusercontent.com
       client_secret_env: GMAIL_CLIENT_SECRET
       refresh_token_env: GMAIL_REFRESH_TOKEN
     folders:
@@ -95,7 +95,7 @@ mailboxes:
 
 | Field | Description |
 |---|---|
-| `client_id_env` | Env var with the Google OAuth2 client ID |
+| `client_id` | Google OAuth2 client ID (not a secret; stored directly in config) |
 | `client_secret_env` | Env var with the Google OAuth2 client secret |
 | `refresh_token_env` | Env var with the offline refresh token |
 
@@ -124,7 +124,6 @@ Secrets are passed via environment variables referenced by name in the config fi
 ```
 PROTON_PASSWORD=
 WEBDAV_PASSWORD=
-GMAIL_CLIENT_ID=
 GMAIL_CLIENT_SECRET=
 GMAIL_REFRESH_TOKEN=
 ```

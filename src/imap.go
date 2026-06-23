@@ -63,7 +63,7 @@ func imapAuth(c *imapclient.Client, mb Mailbox) error {
 
 func gmailAccessToken(cfg *OAuth2Config) (string, error) {
 	oauthCfg := &oauth2.Config{
-		ClientID:     os.Getenv(cfg.ClientIDEnv),
+		ClientID:     cfg.ClientID,
 		ClientSecret: os.Getenv(cfg.ClientSecretEnv),
 		Endpoint:     google.Endpoint,
 		Scopes:       []string{"https://mail.google.com/"},

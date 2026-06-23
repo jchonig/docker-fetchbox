@@ -44,7 +44,7 @@ func (m *Mailbox) Password() string {
 }
 
 type OAuth2Config struct {
-	ClientIDEnv     string `yaml:"client_id_env"`
+	ClientID        string `yaml:"client_id"`
 	ClientSecretEnv string `yaml:"client_secret_env"`
 	RefreshTokenEnv string `yaml:"refresh_token_env"`
 }
