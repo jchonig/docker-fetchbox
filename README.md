@@ -19,9 +19,18 @@ docker compose up -d
 ### One-time Proton Mail Bridge login
 
 ```bash
-docker compose exec bridge /protonmail/protonmail-bridge --cli
-# login → quit — auth persists in the bridge-data volume
-docker compose restart fetchbox
+# Open a shell in the bridge container, stop the background bridge instance,
+# then run the interactive CLI to authenticate
+docker compose exec bridge /bin/bash
+pkill bridge
+/usr/bin/bridge --cli
+# Inside the CLI:
+#   >>> login
+#   >>> exit
+exit
+
+# Restart so the bridge picks up the saved credentials
+docker compose restart bridge
 ```
 
 ---
@@ -42,7 +51,7 @@ storage:
 mailboxes:
   - name: ProtonMail
     host: bridge        # Docker service name on the internal network
-    port: 1143
+    port: 143
     tls: false
     username: you@proton.me
     password_env: PROTON_PASSWORD
@@ -58,7 +67,7 @@ mailboxes:
     username: you@gmail.com
     auth: oauth2
     oauth2:
-      client_id_env: GMAIL_CLIENT_ID
+      client_id: your-client-id.apps.googleusercontent.com
       client_secret_env: GMAIL_CLIENT_SECRET
       refresh_token_env: GMAIL_REFRESH_TOKEN
     folders:
@@ -86,7 +95,7 @@ mailboxes:
 
 | Field | Description |
 |---|---|
-| `client_id_env` | Env var with the Google OAuth2 client ID |
+| `client_id` | Google OAuth2 client ID (not a secret; stored directly in config) |
 | `client_secret_env` | Env var with the Google OAuth2 client secret |
 | `refresh_token_env` | Env var with the offline refresh token |
 
@@ -115,7 +124,6 @@ Secrets are passed via environment variables referenced by name in the config fi
 ```
 PROTON_PASSWORD=
 WEBDAV_PASSWORD=
-GMAIL_CLIENT_ID=
 GMAIL_CLIENT_SECRET=
 GMAIL_REFRESH_TOKEN=
 ```
@@ -158,7 +166,7 @@ Messages with no attachments are marked seen immediately so they are not re-exam
 ```yaml
 services:
   bridge:
-    image: shenxn/protonmail-bridge:latest
+    image: ghcr.io/videocurio/proton-mail-bridge:latest
     restart: unless-stopped
     volumes:
       - bridge-data:/root       # persists bridge auth across restarts
@@ -177,7 +185,7 @@ volumes:
   bridge-data:
 ```
 
-The Proton Mail Bridge stores its session tokens in `~/.config/protonmail/bridge-v3/` (mounted at `/root` above). Auth persists across restarts; only an initial interactive login is needed.
+The [VideoCurio Proton Mail Bridge](https://github.com/VideoCurio/ProtonMailBridgeDocker) image stores credentials under `/root` — the named volume above persists them across restarts. Only an initial interactive login is needed (see Quick start). The bridge listens on port 143 for IMAP inside the Docker network.
 
 ---
 

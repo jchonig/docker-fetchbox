@@ -9,7 +9,7 @@ storage:
 mailboxes:
   - name: ProtonMail
     host: bridge
-    port: 1143
+    port: 143
     tls: false
     username: you@proton.me
     password_env: PROTON_PASSWORD
@@ -25,7 +25,7 @@ mailboxes:
     username: you@gmail.com
     auth: oauth2
     oauth2:
-      client_id_env: GMAIL_CLIENT_ID
+      client_id: your-client-id.apps.googleusercontent.com
       client_secret_env: GMAIL_CLIENT_SECRET
       refresh_token_env: GMAIL_REFRESH_TOKEN
     folders:
