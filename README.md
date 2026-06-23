@@ -203,6 +203,16 @@ make docker-push    # push to ghcr.io
 
 Go source lives in `src/`. Container overlay files (s6 service, etc.) live in `root/`.
 
+### Git hooks
+
+Pre-commit hooks run `make lint` and `make test` before every commit. Enable them after cloning:
+
+```bash
+make hooks
+```
+
+This sets `core.hooksPath = .githooks` in the local git config. The hook scripts are tracked in `.githooks/` so they stay in sync with the repo.
+
 ### Running against a live mailbox
 
 ```bash

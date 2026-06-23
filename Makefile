@@ -4,7 +4,7 @@ GOIMAGE      := golang:1.26-alpine
 GOIMAGE_TEST := golang:1.26
 SRCDIR       := $(CURDIR)/src
 
-.PHONY: all build lint test docker-build image-run-test image-test docker-push clean
+.PHONY: all build lint test hooks docker-build image-run-test image-test docker-push clean
 
 all: build
 
@@ -25,6 +25,9 @@ test:
 		-v "$(SRCDIR):/src" -w /src \
 		$(GOIMAGE_TEST) \
 		go test -v -race -count=1 ./...
+
+hooks:
+	git config core.hooksPath .githooks
 
 docker-build:
 	docker build -t $(IMAGE):$(TAG) .
