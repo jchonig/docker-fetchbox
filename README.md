@@ -141,6 +141,7 @@ mailboxes:
 | `password_env` | Env var containing the IMAP password. On macOS, falls back to the Keychain if unset or empty. |
 | `auth` | `plain` (default) or `oauth2` |
 | `oauth2` | OAuth2 credentials block (Gmail); see below |
+| `trash_folder` | IMAP folder to copy messages into before expunging (e.g. `[Gmail]/Trash`). Required for Gmail: without it, expunge only removes the label and messages remain in All Mail. Leave unset for Proton Mail and other servers that permanently remove on expunge. |
 | `folders` | List of folders to watch |
 
 ### OAuth2 fields (Gmail)
@@ -166,7 +167,7 @@ mailboxes:
 | `name` | IMAP folder name (e.g. `INBOX`) |
 | `storage` | Name of a storage entry defined in the top-level `storage:` map |
 | `path` | Path within the storage base URL where attachments are placed |
-| `delete_after` | If `true`, fetch **all** messages (not just unseen) and expunge them after upload. Default `false` (mark seen). Use for label-based processing queues where messages should be removed after saving. |
+| `delete_after` | If `true`, fetch **all** messages (not just unseen) and expunge them after upload. Default `false` (mark seen). Use for label-based processing queues where messages should be removed after saving. On Gmail, also set `trash_folder: "[Gmail]/Trash"` on the mailbox, otherwise expunge only removes the label. |
 
 ---
 

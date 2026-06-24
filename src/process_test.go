@@ -29,7 +29,7 @@ func (f *fakeFetcher) Fetch(folder string, _ bool) ([]RawMessage, error) {
 	return f.msgs[folder], nil
 }
 
-func (f *fakeFetcher) DeleteMessages(folder string, uids []uint32) error {
+func (f *fakeFetcher) DeleteMessages(folder string, uids []uint32, _ string) error {
 	if f.markErr != nil {
 		return f.markErr
 	}
@@ -72,7 +72,7 @@ func TestProcessFolderEmpty(t *testing.T) {
 	fetcher := newFakeFetcher()
 	uploader := &fakeUploader{}
 
-	if err := processFolder(fetcher, "INBOX", false, uploader, false, noopLogger); err != nil {
+	if err := processFolder(fetcher, "INBOX", false, "", uploader, false, noopLogger); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if len(uploader.uploads) != 0 {
@@ -90,7 +90,7 @@ func TestProcessFolderNoop(t *testing.T) {
 	}
 	uploader := &fakeUploader{}
 
-	if err := processFolder(fetcher, "INBOX", false, uploader, true, noopLogger); err != nil {
+	if err := processFolder(fetcher, "INBOX", false, "", uploader, true, noopLogger); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if len(uploader.uploads) != 0 {
@@ -109,7 +109,7 @@ func TestProcessFolderWithAttachment(t *testing.T) {
 	}
 	uploader := &fakeUploader{}
 
-	if err := processFolder(fetcher, "INBOX", false, uploader, false, noopLogger); err != nil {
+	if err := processFolder(fetcher, "INBOX", false, "", uploader, false, noopLogger); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -135,7 +135,7 @@ func TestProcessFolderDeleteAfter(t *testing.T) {
 	}
 	uploader := &fakeUploader{}
 
-	if err := processFolder(fetcher, "INBOX", true, uploader, false, noopLogger); err != nil {
+	if err := processFolder(fetcher, "INBOX", true, "", uploader, false, noopLogger); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if len(uploader.uploads) != 1 {
@@ -154,7 +154,7 @@ func TestProcessFolderFetchError(t *testing.T) {
 	fetcher.fetchErr = errors.New("imap failure")
 	uploader := &fakeUploader{}
 
-	err := processFolder(fetcher, "INBOX", false, uploader, false, noopLogger)
+	err := processFolder(fetcher, "INBOX", false, "", uploader, false, noopLogger)
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -168,7 +168,7 @@ func TestProcessFolderUploadError(t *testing.T) {
 	uploader := &fakeUploader{err: errors.New("webdav 500")}
 
 	// Upload error should not propagate as a hard error, but uid should not be marked seen
-	if err := processFolder(fetcher, "INBOX", false, uploader, false, noopLogger); err != nil {
+	if err := processFolder(fetcher, "INBOX", false, "", uploader, false, noopLogger); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if len(fetcher.seen["INBOX"]) != 0 {
