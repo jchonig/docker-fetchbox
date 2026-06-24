@@ -165,7 +165,7 @@ func (ic *imapClient) Fetch(folder string, unseenOnly bool) ([]RawMessage, error
 	return msgs, nil
 }
 
-func (ic *imapClient) DeleteMessages(folder string, uids []uint32) error {
+func (ic *imapClient) DeleteMessages(folder string, uids []uint32, trashFolder string) error {
 	if len(uids) == 0 {
 		return nil
 	}
@@ -174,6 +174,12 @@ func (ic *imapClient) DeleteMessages(folder string, uids []uint32) error {
 		imapUIDs[i] = imap.UID(uid)
 	}
 	uidSet := imap.UIDSetNum(imapUIDs...)
+
+	if trashFolder != "" {
+		if _, err := ic.c.Copy(uidSet, trashFolder).Wait(); err != nil {
+			return fmt.Errorf("copy to %q: %w", trashFolder, err)
+		}
+	}
 
 	if err := ic.c.Store(uidSet, &imap.StoreFlags{
 		Op:     imap.StoreFlagsAdd,

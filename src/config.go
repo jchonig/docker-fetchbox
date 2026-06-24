@@ -33,6 +33,7 @@ type Mailbox struct {
 	PasswordEnv string        `yaml:"password_env"`
 	Auth        string        `yaml:"auth"` // "plain" (default) or "oauth2"
 	OAuth2      *OAuth2Config `yaml:"oauth2,omitempty"`
+	TrashFolder string        `yaml:"trash_folder,omitempty"`
 	Folders     []Folder      `yaml:"folders"`
 }
 

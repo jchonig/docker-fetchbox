@@ -15,7 +15,7 @@ import (
 type MailFetcher interface {
 	Fetch(folder string, unseenOnly bool) ([]RawMessage, error)
 	MarkSeen(folder string, uids []uint32) error
-	DeleteMessages(folder string, uids []uint32) error
+	DeleteMessages(folder string, uids []uint32, trashFolder string) error
 	Close() error
 }
 
@@ -70,14 +70,14 @@ func (p *processor) processMailbox(mb Mailbox) error {
 			log.Printf("  folder %s: storage error: %v", folder.Name, err)
 			continue
 		}
-		if err := processFolder(client, folder.Name, folder.DeleteAfter, uploader, p.noop, p.logger); err != nil {
+		if err := processFolder(client, folder.Name, folder.DeleteAfter, mb.TrashFolder, uploader, p.noop, p.logger); err != nil {
 			log.Printf("  folder %s: %v", folder.Name, err)
 		}
 	}
 	return nil
 }
 
-func processFolder(fetcher MailFetcher, folder string, deleteAfter bool, uploader FileUploader, noop bool, l *logger) error {
+func processFolder(fetcher MailFetcher, folder string, deleteAfter bool, trashFolder string, uploader FileUploader, noop bool, l *logger) error {
 	msgs, err := fetcher.Fetch(folder, !deleteAfter)
 	if err != nil {
 		return fmt.Errorf("fetch: %w", err)
@@ -125,7 +125,7 @@ func processFolder(fetcher MailFetcher, folder string, deleteAfter bool, uploade
 	}
 
 	if deleteAfter {
-		if err := fetcher.DeleteMessages(folder, processed); err != nil {
+		if err := fetcher.DeleteMessages(folder, processed, trashFolder); err != nil {
 			return fmt.Errorf("delete messages: %w", err)
 		}
 	} else {
