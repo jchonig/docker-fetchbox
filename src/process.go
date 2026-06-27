@@ -126,6 +126,7 @@ func (p *processor) watchFolder(mb Mailbox, folder Folder, stop <-chan struct{})
 		}
 		backoff = 5 * time.Second
 		p.logger.infof("[%s/%s] logged in as %s", mb.Name, folder.Name, mb.Username)
+		log.Printf("[%s/%s] watching", mb.Name, folder.Name)
 
 		// Initial catch-up: process any messages that arrived while disconnected.
 		if err := processFolder(client, folder.Name, folder.DeleteAfter, mb.TrashFolder, uploader, p.noop, p.logger); err != nil {
@@ -145,6 +146,12 @@ func (p *processor) watchFolder(mb Mailbox, folder Folder, stop <-chan struct{})
 			}
 
 			if err := client.IdleSelected(stop); err != nil {
+				select {
+				case <-stop:
+					client.Close()
+					return
+				default:
+				}
 				log.Printf("[%s/%s] idle: %v", mb.Name, folder.Name, err)
 				connOK = false
 				break
