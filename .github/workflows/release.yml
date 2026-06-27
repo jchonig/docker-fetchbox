@@ -23,3 +23,9 @@ jobs:
             dist/fetchbox-darwin-arm64.tar.gz
             dist/fetchbox-darwin-amd64.tar.gz
           generate_release_notes: true
+
+      - name: Update Homebrew tap
+        if: ${{ secrets.HOMEBREW_TAP_TOKEN != '' }}
+        run: gh workflow run update.yml --repo jchonig/homebrew-casks
+        env:
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
