@@ -25,7 +25,7 @@ jobs:
           generate_release_notes: true
 
       - name: Update Homebrew tap
-        if: ${{ secrets.HOMEBREW_TAP_TOKEN != '' }}
+        continue-on-error: true
         run: gh workflow run update.yml --repo jchonig/homebrew-casks
         env:
           GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
