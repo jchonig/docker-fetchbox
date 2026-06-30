@@ -104,6 +104,7 @@ func (p *processor) watchFolder(mb Mailbox, folder Folder, stop <-chan struct{})
 	}
 
 	backoff := 5 * time.Second
+	hadProcErr := false
 	for {
 		select {
 		case <-stop:
@@ -131,8 +132,13 @@ func (p *processor) watchFolder(mb Mailbox, folder Folder, stop <-chan struct{})
 		// Initial catch-up: process any messages that arrived while disconnected.
 		if err := processFolder(client, folder.Name, folder.DeleteAfter, mb.TrashFolder, uploader, p.noop, p.logger); err != nil {
 			log.Printf("[%s/%s] initial process: %v", mb.Name, folder.Name, err)
+			hadProcErr = true
 			client.Close()
 			continue
+		}
+		if hadProcErr {
+			log.Printf("[%s/%s] process: recovered", mb.Name, folder.Name)
+			hadProcErr = false
 		}
 
 		// IDLE loop: Fetch leaves the folder selected so Idle() follows immediately.
@@ -173,6 +179,7 @@ func (p *processor) watchFolder(mb Mailbox, folder Folder, stop <-chan struct{})
 
 			if err := processFolder(client, folder.Name, folder.DeleteAfter, mb.TrashFolder, uploader, p.noop, p.logger); err != nil {
 				log.Printf("[%s/%s] process: %v", mb.Name, folder.Name, err)
+				hadProcErr = true
 				connOK = false
 			}
 		}
